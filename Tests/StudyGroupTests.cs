@@ -32,20 +32,26 @@ namespace TestApp.Tests
         public async Task TestCreateStudyGroup()
         {
             // Arrange
-            var studyGroup = new StudyGroup(
-                studyGroupId: 1,
-                name: "Math Study Group",
-                subject: Subject.Math,
-                createDate: DateTime.Now,
-                users: new List<User>() // Agrega usuarios si es necesario
-            );
+            var studyGroup = new
+            {
+                studyGroupId = 3,
+                name = "New study group with ID 3",
+                createDate = DateTime.Now.ToString("o"),
+                subjectId = 3,
+                userId = 3,
+                subject = new
+                {
+                    subjectId = 0,
+                    name = "string",
+                    description = "string"
+                }
+            };
 
             var json = JsonConvert.SerializeObject(studyGroup);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             // Act
             var response = await _client.PostAsync("", content);
-            response.EnsureSuccessStatusCode();
 
             // Assert
             Assert.IsTrue(response.IsSuccessStatusCode);
@@ -59,7 +65,7 @@ namespace TestApp.Tests
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var studyGroups = JsonConvert.DeserializeObject<List<StudyGroup>>(responseContent);
+            var studyGroups = JsonConvert.DeserializeObject<List<StudyGroupDto>>(responseContent);
 
             // Assert
             Assert.IsNotNull(studyGroups);
@@ -70,44 +76,47 @@ namespace TestApp.Tests
         public async Task TestJoinStudyGroup()
         {
             // Arrange
-            int studyGroupId = 1;
-            int userId = 5;
+            int studyGroupId = 3;
+            int userId = 4;
+            string url = $"{BaseUrl}/{studyGroupId}/join?userId={userId}";
+            Console.WriteLine($"Joining StudyGroup URL: {url}");
 
             // Act
-            var response = await _client.PostAsync($"/{studyGroupId}/join?userId={userId}", null);
-
-            response.EnsureSuccessStatusCode();
+            var response = await _client.PostAsync(url, null);  // Usar la URL completa aquí
 
             // Assert
-            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to join study group. Status code: {response.StatusCode}");
         }
 
         [Test]
         public async Task TestLeaveStudyGroup()
         {
             // Arrange
-            int studyGroupId = 1;
-            int userId = 1;
+            int studyGroupId = 3;
+            int userId = 4;
+            string url = $"{BaseUrl}/{studyGroupId}/leave?userId={userId}";
+            Console.WriteLine($"Leaving StudyGroup URL: {url}");
 
             // Act
-            var response = await _client.PostAsync($"/{studyGroupId}/leave?userId={userId}", null);
-            response.EnsureSuccessStatusCode();
+            var response = await _client.PostAsync(url, null);
 
             // Assert
-            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to leave study group. Status code: {response.StatusCode}");
         }
 
         [Test]
         public async Task TestCreateStudyGroupWithInvalidName()
-        {
+        { 
             // Arrange
-            var studyGroup = new StudyGroup(
-                studyGroupId: 1,
-                name: "TooLongStudyGroupNameThatExceedsThirtyCharacters",
-                subject: Subject.Math,
-                createDate: DateTime.Now,
-                users: new List<User>()
-            );
+            var studyGroup = new 
+            {
+                studyGroupId = 1,
+                name = "TooLongStudyGroupNameThatExceedsThirtyCharacters",
+                subjectId = 3,
+                createDate = DateTime.Now.ToString("o"),
+                users = new List<User>()  
+            };
+
 
             var json = JsonConvert.SerializeObject(studyGroup);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -116,7 +125,8 @@ namespace TestApp.Tests
             var response = await _client.PostAsync("", content);
 
             // Assert
-            Assert.IsFalse(response.IsSuccessStatusCode);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Assert.IsFalse(response.IsSuccessStatusCode, $"Unexpectedly succeeded in creating study group. Response: {responseContent}");
             Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
         }
 
@@ -124,13 +134,14 @@ namespace TestApp.Tests
         public async Task TestCreateStudyGroupWithInvalidSubject()
         {
             // Arrange
-            var studyGroup = new StudyGroup(
-                studyGroupId: 1,
-                name: "Invalid Subject Group",
-                subject: (Subject)999, // Invalid subject
-                createDate: DateTime.Now,
-                users: new List<User>()
-            );
+            var studyGroup = new
+            {
+                studyGroupId = 1,
+                name = "Invalid Subject Group",
+                subjectId = 999, // Invalid subject
+                createDate = DateTime.Now.ToString("o"),
+                users = new List<User>()
+            };
 
             var json = JsonConvert.SerializeObject(studyGroup);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -139,29 +150,66 @@ namespace TestApp.Tests
             var response = await _client.PostAsync("", content);
 
             // Assert
-            Assert.IsFalse(response.IsSuccessStatusCode);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Assert.IsFalse(response.IsSuccessStatusCode, $"Unexpectedly succeeded in creating study group. Response: {responseContent}");
             Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Test]
+        public async Task TestSearchStudyGroupsBySubject()
+        {
+            // Arrange
+            string subject = "Math";
+            string url = $"{BaseUrl}/search?subject={subject}";
+            Console.WriteLine($"Searching StudyGroup URL: {url}");
+
+            // Act
+            var response = await _client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var studyGroups = JsonConvert.DeserializeObject<List<StudyGroupDto>>(responseContent);
+
+            // Assert
+            Assert.IsNotNull(studyGroups, "No study groups were returned.");
+            Assert.IsTrue(studyGroups.Count > 0, "No study groups found for the subject 'Math'.");
+
         }
 
         [Test]
         public async Task TestCreateDuplicateStudyGroupForSubject()
         {
             // Arrange
-            var studyGroup1 = new StudyGroup(
-                studyGroupId: 1,
-                name: "Math Study Group",
-                subject: Subject.Math,
-                createDate: DateTime.Now,
-                users: new List<User>()
-            );
+            var studyGroup1 = new
+            {
+                studyGroupId = 3,
+                name = "Math Study Group",
+                subjectId = 3,
+                createDate = DateTime.Now.ToString("o"),
+                userId = 3,
+                subject = new
+                {
+                    subjectId = 0,
+                    name = "string",
+                    description = "string"
+                }
 
-            var studyGroup2 = new StudyGroup(
-                studyGroupId: 2,
-                name: "Another Math Study Group",
-                subject: Subject.Math,
-                createDate: DateTime.Now,
-                users: new List<User>()
-            );
+            };
+
+            var studyGroup2 = new
+            {
+                studyGroupId = 4,
+                name = "Another Math Study Group",
+                subjectId = 3,
+                createDate = DateTime.Now.ToString("o"),
+                userId = 3,
+                subject = new
+                {
+                    subjectId = 0,
+                    name = "string",
+                    description = "string"
+                }
+            };
 
             var json1 = JsonConvert.SerializeObject(studyGroup1);
             var content1 = new StringContent(json1, Encoding.UTF8, "application/json");
@@ -171,13 +219,40 @@ namespace TestApp.Tests
 
             // Act
             var response1 = await _client.PostAsync("", content1);
+            var responseContent1 = await response1.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response 1: {responseContent1}");
             response1.EnsureSuccessStatusCode();
 
             var response2 = await _client.PostAsync("", content2);
+            var responseContent2 = await response2.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response 2: {responseContent2}");
 
             // Assert
-            Assert.IsFalse(response2.IsSuccessStatusCode);
-            Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response2.StatusCode);
+            Assert.IsFalse(response2.IsSuccessStatusCode, $"Unexpectedly succeeded in creating duplicate study group. Response: {responseContent2}");
+            Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response2.StatusCode, "Expected BadRequest status for duplicate study group creation.");
+        }
+
+        private class StudyGroupDto
+        {
+            public int StudyGroupId { get; set; }
+            public string Name { get; set; }
+            public DateTime CreateDate { get; set; }
+            public int SubjectId { get; set; }
+            public int UserId { get; set; }
+            public SubjectDto Subject { get; set; }
+        }
+
+        private class SubjectDto
+        {
+            public int SubjectId { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
+        }
+
+        private class User
+        {
+            public int UserId { get; set; }
+            public string UserName { get; set; }
         }
     }
 }
